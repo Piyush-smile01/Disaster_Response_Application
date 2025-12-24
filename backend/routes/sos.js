@@ -1,34 +1,49 @@
 const express = require("express");
 const router = express.Router();
 
-// Test route
-router.get("/", (req, res) => {
-  res.send("SOS OK");
-});
+const db = require("../firebase");
+const { predictDisaster } = require("../ml/model");
+const { detectSeverity, calculatePriority } = require("../ml/utils");
 
-// Report disaster (API for Flutter)
-router.post("/report", (req, res) => {
-  const { name, description, latitude, longitude } = req.body;
+router.post("/", async (req, res) => {
+  try {
+    const { message, location, peopleAffected } = req.body;
 
-  if (!description || !latitude || !longitude) {
-    return res.status(400).json({
-      success: false,
-      message: "Missing required fields",
+    // 1️⃣ TensorFlow prediction
+    const prediction = await predictDisaster(message);
+
+    // 2️⃣ Severity detection
+    const severity = detectSeverity(message);
+
+    // 3️⃣ Priority calculation
+    const priority = calculatePriority(
+      severity,
+      prediction.confidence,
+      peopleAffected || 0
+    );
+
+    // 4️⃣ Save to Firebase
+    await db.collection("sos").add({
+      message,
+      location,
+      disasterType: prediction.disasterType,
+      confidence: prediction.confidence,
+      severity,
+      priority,
+      createdAt: Date.now()
     });
+
+    // 5️⃣ Send response
+    res.json({
+      disasterType: prediction.disasterType,
+      severity,
+      priority
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "SOS processing failed" });
   }
-
-  // For now just log (later Firebase will store this)
-  console.log("DISASTER REPORTED:", {
-    name,
-    description,
-    latitude,
-    longitude,
-  });
-
-  res.json({
-    success: true,
-    message: "Disaster reported successfully",
-  });
 });
 
 module.exports = router;
