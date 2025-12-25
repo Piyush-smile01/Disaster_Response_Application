@@ -1,13 +1,25 @@
 function detectSeverity(text) {
   text = text.toLowerCase();
 
-  if (text.match(/dead|killed|trapped|collapsed|missing/)) return 3;
-  if (text.match(/flooded|injured|damage|evacuated/)) return 2;
-  return 1;
+  if (/dead|killed|trapped|collapsed|missing/.test(text)) {
+    return "high";
+  }
+
+  if (/flooded|injured|damage|evacuated/.test(text)) {
+    return "medium";
+  }
+
+  return "low";
 }
 
 function calculatePriority(severity, confidence, peopleAffected) {
-  return severity * 3 + confidence * 2 + peopleAffected;
+  let severityScore = 1;
+
+  if (severity === "high") severityScore = 3;
+  else if (severity === "medium") severityScore = 2;
+
+  // confidence is expected between 0 and 1
+  return severityScore * 3 + confidence * 2 + Number(peopleAffected || 0);
 }
 
 module.exports = { detectSeverity, calculatePriority };
