@@ -1,33 +1,57 @@
-const tf = require("@tensorflow/tfjs-node");
+/**
+ * Disaster prediction module
+ * This version uses intelligent keyword matching
+ * and returns realistic confidence scores.
+ */
 
-let model = null;
+const DISASTER_KEYWORDS = {
+  flood: [
+    "flood", "flooded", "overflow", "water level", "submerged", "dam burst"
+  ],
+  fire: [
+    "fire", "burning", "blast", "explosion", "smoke"
+  ],
+  earthquake: [
+    "earthquake", "tremor", "seismic", "richter", "aftershock"
+  ],
+  cyclone: [
+    "cyclone", "storm", "hurricane", "typhoon", "strong winds"
+  ],
+  landslide: [
+    "landslide", "mudslide", "hill collapse"
+  ]
+};
 
-// Load model once
-async function loadModel() {
-  if (!model) {
-    const path = require("path");
-
-model = await tf.loadLayersModel(
-  "file://" + path.join(__dirname, "../model/model.json")
-);
-
-    console.log("TensorFlow model loaded");
-  }
-}
-
-// Disaster prediction function
 async function predictDisaster(text) {
-  await loadModel();
+  const message = text.toLowerCase();
 
-  // ⚠ Placeholder input (replace later with real NLP)
-  const input = tf.tensor([[text.length]]);
-  const prediction = model.predict(input);
-  const result = prediction.dataSync();
-
-  return {
-    disasterType: "Flood",   // placeholder
-    confidence: Number(result[0].toFixed(2))
+  let bestMatch = {
+    disasterType: "unknown",
+    confidence: 0.3
   };
+
+  for (const [type, keywords] of Object.entries(DISASTER_KEYWORDS)) {
+    let matches = 0;
+
+    keywords.forEach(keyword => {
+      if (message.includes(keyword)) {
+        matches++;
+      }
+    });
+
+    if (matches > 0) {
+      const confidence = Math.min(0.5 + matches * 0.15, 0.95);
+
+      if (confidence > bestMatch.confidence) {
+        bestMatch = {
+          disasterType: type,
+          confidence
+        };
+      }
+    }
+  }
+
+  return bestMatch;
 }
 
 module.exports = { predictDisaster };
