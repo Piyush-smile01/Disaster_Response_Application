@@ -6,6 +6,8 @@ const { predictDisaster } = require("../ml/model");
 const { detectSeverity, calculatePriority } = require("../ml/utils");
 
 router.post("/", async (req, res) => {
+  console.log("SOS API HIT");
+  console.log("REQ BODY:", req.body);
   try {
     const { message, location, peopleAffected } = req.body;
 
