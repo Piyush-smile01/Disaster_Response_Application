@@ -5,9 +5,12 @@ let model = null;
 // Load model once
 async function loadModel() {
   if (!model) {
-    model = await tf.loadLayersModel(
-      "file://backend/model/model.json"
-    );
+    const path = require("path");
+
+model = await tf.loadLayersModel(
+  "file://" + path.join(__dirname, "../model/model.json")
+);
+
     console.log("TensorFlow model loaded");
   }
 }
