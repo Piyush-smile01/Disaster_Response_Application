@@ -13,19 +13,26 @@ class _ReportDisasterScreenState extends State<ReportDisasterScreen> {
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController peopleController = TextEditingController();
 
+  bool isLoading = false;
+
   Future<void> submitReport() async {
+    setState(() => isLoading = true);
+
     final result = await ApiService.reportDisaster(
-      disasterType: typeController.text,
-      description: descriptionController.text,
+      message:
+          "${typeController.text} - ${descriptionController.text}",
+      location: "Delhi",
       peopleAffected: int.tryParse(peopleController.text) ?? 0,
-      latitude: 28.61,
-      longitude: 77.23,
     );
+
+    setState(() => isLoading = false);
+
+    if (!mounted) return;
 
     if (result != null) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (_) => AlertDialog(
           title: const Text("Prediction Result"),
           content: Text(
             "Disaster Type: ${result['disasterType']}\n"
@@ -40,6 +47,10 @@ class _ReportDisasterScreenState extends State<ReportDisasterScreen> {
           ],
         ),
       );
+
+      typeController.clear();
+      descriptionController.clear();
+      peopleController.clear();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to submit report")),
@@ -62,16 +73,16 @@ class _ReportDisasterScreenState extends State<ReportDisasterScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
               controller: descriptionController,
+              maxLines: 3,
               decoration: const InputDecoration(
                 labelText: "Description",
                 border: OutlineInputBorder(),
               ),
-              maxLines: 3,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
               controller: peopleController,
               keyboardType: TextInputType.number,
@@ -80,10 +91,12 @@ class _ReportDisasterScreenState extends State<ReportDisasterScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: submitReport,
-              child: const Text("Submit Report"),
+              onPressed: isLoading ? null : submitReport,
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Submit Report"),
             ),
           ],
         ),
