@@ -1,30 +1,50 @@
-function detectSeverity(message, peopleAffected = 0) {
-  message = message.toLowerCase();
+/**
+ * Detect severity level from text and AI confidence
+ */
+function detectSeverity(text, confidence = 0) {
+  const msg = (text || "").toLowerCase();
+  let severity = "low";
 
-  if (peopleAffected >= 50) return "high";
-  if (peopleAffected >= 20) return "medium";
-
-  if (
-    message.includes("earthquake") ||
-    message.includes("flood") ||
-    message.includes("fire") ||
-    message.includes("collapse")
-  ) {
-    return "medium";
+  if (/dead|killed|missing|trapped|collapsed/.test(msg)) {
+    severity = "high";
+  } else if (/injured|flooded|evacuated|damage/.test(msg)) {
+    severity = "medium";
   }
 
-  return "low";
+  // Boost severity if AI confidence is very high
+  if (confidence >= 0.85 && severity === "medium") {
+    severity = "high";
+  }
+
+  return severity;
 }
 
-
-function calculatePriority(severity, confidence, peopleAffected) {
+/**
+ * Calculate priority score for SOS
+ */
+function calculatePriority({
+  severity,
+  confidence,
+  peopleAffected = 0,
+  hasMedia = false
+}) {
   let severityScore = 1;
 
   if (severity === "high") severityScore = 3;
   else if (severity === "medium") severityScore = 2;
 
-  // confidence is expected between 0 and 1
-  return severityScore * 3 + confidence * 2 + Number(peopleAffected || 0);
+  let priority =
+    severityScore * 3 +
+    confidence * 2 +
+    Number(peopleAffected || 0);
+
+  // Media proof increases urgency
+  if (hasMedia) priority += 2;
+
+  return priority;
 }
 
-module.exports = { detectSeverity, calculatePriority };
+module.exports = {
+  detectSeverity,
+  calculatePriority
+};
