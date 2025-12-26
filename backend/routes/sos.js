@@ -1,51 +1,61 @@
-const express = require("express");
-const router = express.Router();
+const { detectDisaster } = require("./disasterController");
+const { detectSeverity, calculatePriority } = require("./utils");
 
-const db = require("../firebase");
-const { predictDisaster } = require("../ml/model");
-const { detectSeverity, calculatePriority } = require("../ml/utils");
-
-router.post("/", async (req, res) => {
-  console.log("SOS API HIT");
-  console.log("REQ BODY:", req.body);
+/**
+ * Handle incoming SOS request
+ */
+async function handleSOS(req, res) {
   try {
-    const { message, location, peopleAffected } = req.body;
+    // Text message from SOS
+    const { message, peopleAffected } = req.body;
 
-    // 1️⃣ TensorFlow prediction
-    const prediction = await predictDisaster(message);
+    // Uploaded files (via multer)
+    const imagePath = req.files?.image?.[0]?.path || null;
+    const videoPath = req.files?.video?.[0]?.path || null;
 
-    // 2️⃣ Severity detection
-    const severity = detectSeverity(message);
-
-    // 3️⃣ Priority calculation
-    const priority = calculatePriority(
-      severity,
-      prediction.confidence,
-      peopleAffected || 0
-    );
-
-    // 4️⃣ Save to Firebase
-    await db.collection("sos").add({
-      message,
-      location,
-      disasterType: prediction.disasterType,
-      confidence: prediction.confidence,
-      severity,
-      priority,
-      createdAt: Date.now()
+    // 1️⃣ Detect disaster (AI decision)
+    const prediction = await detectDisaster({
+      text: message,
+      imagePath,
+      videoPath
     });
 
+    // 2️⃣ Detect severity
+    const severity = detectSeverity(message, prediction.confidence);
+
+    // 3️⃣ Calculate priority score
+    const priority = calculatePriority({
+      severity,
+      confidence: prediction.confidence,
+      peopleAffected,
+      hasMedia: !!(imagePath || videoPath)
+    });
+
+    // 4️⃣ Decide SOS status
+    const SOS_TRIGGER_THRESHOLD = 6;
+
+    const status =
+      priority >= SOS_TRIGGER_THRESHOLD
+        ? "SOS_TRIGGERED"
+        : "SOS_REVIEW_REQUIRED";
+
     // 5️⃣ Send response
-    res.json({
+    return res.status(200).json({
+      status,
       disasterType: prediction.disasterType,
+      confidence: prediction.confidence,
       severity,
       priority
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "SOS processing failed" });
+    console.error("SOS ERROR:", error);
+    return res.status(500).json({
+      error: "Failed to process SOS request"
+    });
   }
-});
+}
 
-module.exports = router;
+module.exports = { handleSOS };
+
+      
