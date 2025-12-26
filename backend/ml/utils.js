@@ -1,24 +1,52 @@
-function detectSeverity(text) {
-  const msg = text.toLowerCase();
+function detectSeverity(message, peopleAffected = 0) {
+  const text = message.toLowerCase();
 
-  if (msg.includes("many") || msg.includes("severe") || msg.includes("trapped")) {
+  if (peopleAffected >= 50) return "critical";
+  if (peopleAffected >= 20) return "high";
+  if (peopleAffected >= 5) return "medium";
+
+  if (
+    text.includes("urgent") ||
+    text.includes("trapped") ||
+    text.includes("emergency")
+  ) {
     return "high";
   }
-  if (msg.includes("few") || msg.includes("minor")) {
-    return "low";
+
+  return "low";
+}
+
+
+function calculatePriority(severity, confidence, peopleAffected = 0) {
+  let score = 0;
+
+  // Severity weight
+  switch (severity) {
+    case "critical":
+      score += 4;
+      break;
+    case "high":
+      score += 3;
+      break;
+    case "medium":
+      score += 2;
+      break;
+    default:
+      score += 1;
   }
-  return "medium";
+
+  // Confidence weight (0–2)
+  score += Math.round(confidence * 2);
+
+  // People affected weight (0–3)
+  if (peopleAffected >= 50) score += 3;
+  else if (peopleAffected >= 20) score += 2;
+  else if (peopleAffected >= 5) score += 1;
+
+  return Math.min(score, 10);
 }
 
-function calculatePriority(severity, confidence, peopleAffected) {
-  let score = confidence;
-
-  if (severity === "high") score += 0.3;
-  if (severity === "medium") score += 0.2;
-  if (peopleAffected > 10) score += 0.2;
-
-  return Math.min(score, 1).toFixed(2);
-}
 
 module.exports = { detectSeverity, calculatePriority };
+
 
