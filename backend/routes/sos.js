@@ -6,44 +6,46 @@ const { predictDisaster } = require("../ml/model");
 const { detectSeverity, calculatePriority } = require("../ml/utils");
 
 router.post("/", async (req, res) => {
-  console.log("SOS API HIT");
+  console.log("Disaster Reported");
   console.log("REQ BODY:", req.body);
+
   try {
-    const { message, location, peopleAffected } = req.body;
+    const { message, 
+      location, 
+      peopleAffected } = req.body;
 
-    // 1️⃣ TensorFlow prediction
+    if (!message || !location) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
     const prediction = await predictDisaster(message);
-
-    // 2️⃣ Severity detection
-    const severity = detectSeverity(message,peopleAffected);
-
-    // 3️⃣ Priority calculation
+    const severity = detectSeverity(message);
     const priority = calculatePriority(
       severity,
       prediction.confidence,
       peopleAffected || 0
     );
 
-    // 4️⃣ Save to Firebase
-    await db.collection("sos").add({
+    const docRef = await db.collection("sos").add({
       message,
       location,
+      peopleAffected: peopleAffected || 0,
       disasterType: prediction.disasterType,
       confidence: prediction.confidence,
       severity,
       priority,
-      createdAt: Date.now()
+      createdAt: new Date()
     });
 
-    // 5️⃣ Send response
-    res.json({
+    res.status(200).json({
+      id: docRef.id,
       disasterType: prediction.disasterType,
       severity,
       priority
     });
 
   } catch (error) {
-    console.error(error);
+    console.error(" SOS ERROR:", error);
     res.status(500).json({ error: "SOS processing failed" });
   }
 });
