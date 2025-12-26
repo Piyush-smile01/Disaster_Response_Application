@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/location_helper.dart';
 
 class ReportDisasterScreen extends StatefulWidget {
   const ReportDisasterScreen({super.key});
@@ -18,42 +19,57 @@ class _ReportDisasterScreenState extends State<ReportDisasterScreen> {
   Future<void> submitReport() async {
     setState(() => isLoading = true);
 
-    final result = await ApiService.reportDisaster(
-      message:
-          "${typeController.text} - ${descriptionController.text}",
-      location: "Delhi",
-      peopleAffected: int.tryParse(peopleController.text) ?? 0,
-    );
+    try {
+      // 1️⃣ Get real user location
+      final position = await getCurrentLocation();
 
-    setState(() => isLoading = false);
-
-    if (!mounted) return;
-
-    if (result != null) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Prediction Result"),
-          content: Text(
-            "Disaster Type: ${result['disasterType']}\n"
-            "Severity: ${result['severity']}\n"
-            "Priority: ${result['priority']}",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
+      // 2️⃣ Call backend API
+      final result = await ApiService.reportDisaster(
+        message:
+            "${typeController.text} - ${descriptionController.text}",
+        location: "${position.latitude},${position.longitude}",
+        peopleAffected: int.tryParse(peopleController.text) ?? 0,
       );
 
-      typeController.clear();
-      descriptionController.clear();
-      peopleController.clear();
-    } else {
+      setState(() => isLoading = false);
+
+      if (!mounted) return;
+
+      if (result != null) {
+        // 3️⃣ Show prediction result
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Prediction Result"),
+            content: Text(
+              "Disaster Type: ${result['disasterType']}\n"
+              "Severity: ${result['severity']}\n"
+              "Priority: ${result['priority']}\n\n"
+              "Location:\n${position.latitude}, ${position.longitude}",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+
+        // 4️⃣ Clear fields
+        typeController.clear();
+        descriptionController.clear();
+        peopleController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to submit report")),
+        );
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to submit report")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
   }
@@ -62,14 +78,14 @@ class _ReportDisasterScreenState extends State<ReportDisasterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Report Disaster")),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             TextField(
               controller: typeController,
               decoration: const InputDecoration(
-                labelText: "Disaster Type",
+                labelText: "Disaster Type (e.g. Flood)",
                 border: OutlineInputBorder(),
               ),
             ),
