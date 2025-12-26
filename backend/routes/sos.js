@@ -15,7 +15,7 @@ router.post("/", async (req, res) => {
     const prediction = await predictDisaster(message);
 
     // 2️⃣ Severity detection
-    const severity = detectSeverity(message);
+    const severity = detectSeverity(message,peopleAffected);
 
     // 3️⃣ Priority calculation
     const priority = calculatePriority(

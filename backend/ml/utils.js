@@ -1,16 +1,21 @@
-function detectSeverity(text) {
-  text = text.toLowerCase();
+function detectSeverity(message, peopleAffected = 0) {
+  message = message.toLowerCase();
 
-  if (/dead|killed|trapped|collapsed|missing/.test(text)) {
-    return "high";
-  }
+  if (peopleAffected >= 50) return "high";
+  if (peopleAffected >= 20) return "medium";
 
-  if (/flooded|injured|damage|evacuated/.test(text)) {
+  if (
+    message.includes("earthquake") ||
+    message.includes("flood") ||
+    message.includes("fire") ||
+    message.includes("collapse")
+  ) {
     return "medium";
   }
 
   return "low";
 }
+
 
 function calculatePriority(severity, confidence, peopleAffected) {
   let severityScore = 1;
