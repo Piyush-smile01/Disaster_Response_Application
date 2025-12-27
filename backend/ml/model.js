@@ -8,18 +8,22 @@
  * Disaster prediction module (TensorFlow NLP)
  */
 
+/**
+ * Disaster prediction module (TensorFlow NLP)
+ * Returns disaster type + confidence
+ */
+
 const tf = require("@tensorflow/tfjs-node");
 const natural = require("natural");
 
 const tokenizer = new natural.WordTokenizer();
 
-// Disaster labels
 const LABELS = ["flood", "fire", "earthquake", "cyclone", "landslide"];
 const labelToIndex = Object.fromEntries(
   LABELS.map((l, i) => [l, i])
 );
 
-// Training data (you should expand this)
+// --- Training data (expand later) ---
 const TRAINING_DATA = [
   { text: "river overflowed after heavy rain", label: "flood" },
   { text: "houses submerged due to rainfall", label: "flood" },
@@ -38,15 +42,11 @@ const vocab = {};
 let vocabSize = 1;
 
 function textToSequence(text) {
-  const tokens = tokenizer.tokenize(text.toLowerCase());
-  return tokens.map(word => {
+  return tokenizer.tokenize(text.toLowerCase()).map(word => {
     if (!vocab[word]) vocab[word] = vocabSize++;
     return vocab[word];
   });
 }
-
-const sequences = TRAINING_DATA.map(d => textToSequence(d.text));
-const labels = TRAINING_DATA.map(d => labelToIndex[d.label]);
 
 const MAX_LEN = 10;
 
@@ -56,10 +56,11 @@ function padSequence(seq) {
   );
 }
 
-const paddedSeqs = sequences.map(padSequence);
+// ---- Prepare tensors ----
+const sequences = TRAINING_DATA.map(d => padSequence(textToSequence(d.text)));
+const labels = TRAINING_DATA.map(d => labelToIndex[d.label]);
 
-// ---- TensorFlow tensors ----
-const xs = tf.tensor2d(paddedSeqs);
+const xs = tf.tensor2d(sequences);
 const ys = tf.oneHot(tf.tensor1d(labels, "int32"), LABELS.length);
 
 // ---- Model ----
@@ -74,7 +75,6 @@ model.add(
 );
 
 model.add(tf.layers.flatten());
-
 model.add(tf.layers.dense({ units: 32, activation: "relu" }));
 model.add(tf.layers.dense({ units: LABELS.length, activation: "softmax" }));
 
@@ -84,33 +84,10 @@ model.compile({
   metrics: ["accuracy"]
 });
 
-// ---- Train once at startup ----
-async function trainModel() {
-  await model.fit(xs, ys, {
-    epochs: 50,
-    verbose: 0
-  });
-}
-
-trainModel();
+// ---- Train once ----
+(async () => {
+  await model.fit(xs, ys, { epochs: 50, verbose: 0 });
+})();
 
 // ---- Prediction ----
-async function predictDisaster(text) {
-  const seq = padSequence(textToSequence(text));
-  const input = tf.tensor2d([seq]);
-
-  const prediction = model.predict(input);
-  const scores = prediction.dataSync();
-
-  let maxIndex = 0;
-  scores.forEach((v, i) => {
-    if (v > scores[maxIndex]) maxIndex = i;
-  });
-
-  return {
-    disasterType: LABELS[maxIndex],
-    confidence: Number(scores[maxIndex].toFixed(2))
-  };
-}
-
-module.exports = { predictDisaster };
+async f
