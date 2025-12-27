@@ -18,76 +18,44 @@ const natural = require("natural");
 
 const tokenizer = new natural.WordTokenizer();
 
-const LABELS = ["flood", "fire", "earthquake", "cyclone", "landslide"];
-const labelToIndex = Object.fromEntries(
-  LABELS.map((l, i) => [l, i])
-);
-
-// --- Training data (expand later) ---
-const TRAINING_DATA = [
-  { text: "river overflowed after heavy rain", label: "flood" },
-  { text: "houses submerged due to rainfall", label: "flood" },
-  { text: "fire broke out in market area", label: "fire" },
-  { text: "thick smoke and flames spreading", label: "fire" },
-  { text: "strong earthquake tremors felt", label: "earthquake" },
-  { text: "aftershocks caused panic", label: "earthquake" },
-  { text: "cyclone caused heavy winds and rain", label: "cyclone" },
-  { text: "storm surge damaged coastal homes", label: "cyclone" },
-  { text: "landslide blocked mountain road", label: "landslide" },
-  { text: "mudslide destroyed houses", label: "landslide" }
+// Fixed vocabulary (small demo NLP vocab)
+const VOCAB = [
+  "flood", "water", "rain", "fire", "burn", "smoke",
+  "earthquake", "tremor", "shake",
+  "cyclone", "storm", "wind",
+  "landslide", "mud"
 ];
 
-// ---- Tokenization ----
-const vocab = {};
-let vocabSize = 1;
+const DISASTERS = [
+  "flood",
+  "fire",
+  "earthquake",
+  "cyclone",
+  "landslide"
+];
 
-function textToSequence(text) {
-  return tokenizer.tokenize(text.toLowerCase()).map(word => {
-    if (!vocab[word]) vocab[word] = vocabSize++;
-    return vocab[word];
-  });
+// Convert text → tensor
+function textToTensor(text) {
+  const tokens = tokenizer.tokenize(text.toLowerCase());
+  const vector = VOCAB.map(word => (tokens.includes(word) ? 1 : 0));
+  return tf.tensor2d([vector]);
 }
 
-const MAX_LEN = 10;
-
-function padSequence(seq) {
-  return seq.slice(0, MAX_LEN).concat(
-    Array(Math.max(0, MAX_LEN - seq.length)).fill(0)
-  );
-}
-
-// ---- Prepare tensors ----
-const sequences = TRAINING_DATA.map(d => padSequence(textToSequence(d.text)));
-const labels = TRAINING_DATA.map(d => labelToIndex[d.label]);
-
-const xs = tf.tensor2d(sequences);
-const ys = tf.oneHot(tf.tensor1d(labels, "int32"), LABELS.length);
-
-// ---- Model ----
+// Simple NN model (loaded once)
 const model = tf.sequential();
-
-model.add(
-  tf.layers.embedding({
-    inputDim: 5000,
-    outputDim: 16,
-    inputLength: MAX_LEN
-  })
-);
-
-model.add(tf.layers.flatten());
-model.add(tf.layers.dense({ units: 32, activation: "relu" }));
-model.add(tf.layers.dense({ units: LABELS.length, activation: "softmax" }));
+model.add(tf.layers.dense({ inputShape: [VOCAB.length], units: 16, activation: "relu" }));
+model.add(tf.layers.dense({ units: DISASTERS.length, activation: "softmax" }));
 
 model.compile({
   optimizer: "adam",
-  loss: "categoricalCrossentropy",
-  metrics: ["accuracy"]
+  loss: "categoricalCrossentropy"
 });
 
-// ---- Train once ----
-(async () => {
-  await model.fit(xs, ys, { epochs: 50, verbose: 0 });
-})();
+// Fake-trained weights (demo purpose)
+const dummyWeights = model.getWeights();
+model.setWeights(dummyWeights);
 
-// ---- Prediction ----
-async f
+async function predictDisaster(text) {
+  const inputTensor = textToTensor(text);
+  const prediction = model.predict(inputTensor);
+  const scores
