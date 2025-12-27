@@ -1,3 +1,11 @@
+/**
+ * Utility functions for disaster severity & priority
+ * Priority scale:
+ * 1 = Very destructive
+ * 2 = Moderate
+ * 3 = Low
+ */
+
 function detectSeverity(message, peopleAffected = 0) {
   const text = message.toLowerCase();
 
@@ -6,9 +14,10 @@ function detectSeverity(message, peopleAffected = 0) {
   if (peopleAffected >= 5) return "medium";
 
   if (
-    text.includes("urgent") ||
+    text.includes("collapsed") ||
     text.includes("trapped") ||
-    text.includes("emergency")
+    text.includes("emergency") ||
+    text.includes("destroyed")
   ) {
     return "high";
   }
@@ -16,37 +25,32 @@ function detectSeverity(message, peopleAffected = 0) {
   return "low";
 }
 
-
-function calculatePriority(severity, confidence, peopleAffected = 0) {
-  let score = 0;
-
-  // Severity weight
-  switch (severity) {
-    case "critical":
-      score += 4;
-      break;
-    case "high":
-      score += 3;
-      break;
-    case "medium":
-      score += 2;
-      break;
-    default:
-      score += 1;
+function rateDisasterPriority({
+  confidence,
+  severity,
+  peopleAffected = 0
+}) {
+  // ---- Priority 1: Very destructive ----
+  if (
+    severity === "critical" ||
+    (confidence >= 0.75 && peopleAffected >= 50)
+  ) {
+    return 1;
   }
 
-  // Confidence weight (0–2)
-  score += Math.round(confidence * 2);
+  // ---- Priority 2: Moderate ----
+  if (
+    severity === "high" ||
+    (confidence >= 0.5 && peopleAffected >= 10)
+  ) {
+    return 2;
+  }
 
-  // People affected weight (0–3)
-  if (peopleAffected >= 50) score += 3;
-  else if (peopleAffected >= 20) score += 2;
-  else if (peopleAffected >= 5) score += 1;
-
-  return Math.min(score, 10);
+  // ---- Priority 3: Low ----
+  return 3;
 }
 
-
-module.exports = { detectSeverity, calculatePriority };
-
-
+module.exports = {
+  detectSeverity,
+  rateDisasterPriority
+};
