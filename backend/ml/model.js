@@ -14,48 +14,91 @@
  */
 
 const tf = require("@tensorflow/tfjs-node");
-const natural = require("natural");
+const sharp = require("sharp");
+const ffmpeg = require("fluent-ffmpeg");
+const fs = require("fs");
+const path = require("path");
 
-const tokenizer = new natural.WordTokenizer();
+/* ---------------- TEXT MODEL ---------------- */
 
-// Fixed vocabulary (small demo NLP vocab)
-const VOCAB = [
-  "flood", "water", "rain", "fire", "burn", "smoke",
-  "earthquake", "tremor", "shake",
-  "cyclone", "storm", "wind",
-  "landslide", "mud"
-];
+const DISASTERS = ["flood", "fire", "earthquake", "cyclone", "landslide"];
 
-const DISASTERS = [
-  "flood",
-  "fire",
-  "earthquake",
-  "cyclone",
-  "landslide"
-];
+async function predictTextDisaster(text) {
+  const lower = text.toLowerCase();
 
-// Convert text → tensor
-function textToTensor(text) {
-  const tokens = tokenizer.tokenize(text.toLowerCase());
-  const vector = VOCAB.map(word => (tokens.includes(word) ? 1 : 0));
-  return tf.tensor2d([vector]);
+  let scores = {
+    flood: lower.includes("flood") || lower.includes("water") ? 0.8 : 0.1,
+    fire: lower.includes("fire") || lower.includes("smoke") ? 0.8 : 0.1,
+    earthquake: lower.includes("earthquake") ? 0.8 : 0.1,
+    cyclone: lower.includes("storm") || lower.includes("wind") ? 0.8 : 0.1,
+    landslide: lower.includes("landslide") || lower.includes("mud") ? 0.8 : 0.1
+  };
+
+  let best = "unknown";
+  let confidence = 0;
+
+  for (let k in scores) {
+    if (scores[k] > confidence) {
+      confidence = scores[k];
+      best = k;
+    }
+  }
+
+  return { disasterType: best, confidence };
 }
 
-// Simple NN model (loaded once)
-const model = tf.sequential();
-model.add(tf.layers.dense({ inputShape: [VOCAB.length], units: 16, activation: "relu" }));
-model.add(tf.layers.dense({ units: DISASTERS.length, activation: "softmax" }));
+/* ---------------- IMAGE MODEL ---------------- */
 
-model.compile({
-  optimizer: "adam",
-  loss: "categoricalCrossentropy"
-});
+async function preprocessImage(imagePath) {
+  const buffer = await sharp(imagePath)
+    .resize(224, 224)
+    .toFormat("png")
+    .toBuffer();
 
-// Fake-trained weights (demo purpose)
-const dummyWeights = model.getWeights();
-model.setWeights(dummyWeights);
+  return tf.node
+    .decodeImage(buffer, 3)
+    .expandDims(0)
+    .div(255.0);
+}
 
-async function predictDisaster(text) {
-  const inputTensor = textToTensor(text);
-  const prediction = model.predict(inputTensor);
-  const scores
+async function predictImageDisaster(imagePath) {
+  // Dummy CNN-style logic (replace with trained model later)
+  const tensor = await preprocessImage(imagePath);
+  tensor.dispose();
+
+  return {
+    disasterType: "flood",
+    confidence: 0.75
+  };
+}
+
+/* ---------------- VIDEO MODEL ---------------- */
+
+function extractFrame(videoPath, framePath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .screenshots({
+        count: 1,
+        folder: path.dirname(framePath),
+        filename: path.basename(framePath)
+      })
+      .on("end", resolve)
+      .on("error", reject);
+  });
+}
+
+async function predictVideoDisaster(videoPath) {
+  const framePath = videoPath.replace(".mp4", "_frame.png");
+
+  await extractFrame(videoPath, framePath);
+  const prediction = await predictImageDisaster(framePath);
+
+  fs.unlinkSync(framePath);
+  return prediction;
+}
+
+module.exports = {
+  predictTextDisaster,
+  predictImageDisaster,
+  predictVideoDisaster
+};
