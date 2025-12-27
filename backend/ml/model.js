@@ -55,7 +55,7 @@ async function predictDisaster(text) {
     }
 
     if (matches > 0) {
-      const confidence = Math.min(0.5 + matches * 0.15, 0.95);
+      const confidence = Math.min(0.4 + matches * 0.15, 0.95);
 
       if (confidence > bestMatch.confidence) {
         bestMatch = {

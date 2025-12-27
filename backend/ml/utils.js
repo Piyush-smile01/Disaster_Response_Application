@@ -1,27 +1,36 @@
-/**
- * Utility functions for disaster severity & priority
- * Priority scale:
- * 1 = Very destructive
- * 2 = Moderate
- * 3 = Low
- */
-
-function detectSeverity(message, peopleAffected = 0) {
+function detectSeverity(message) {
   const text = message.toLowerCase();
 
-  if (peopleAffected > 100 || text.includes("destroyed")) return 3;
-  if (peopleAffected > 20 || text.includes("trapped")) return 2;
-  return 1;
+  if (
+    text.includes("urgent") ||
+    text.includes("trapped") ||
+    text.includes("emergency") ||
+    text.includes("severe")
+  ) {
+    return "high";
+  }
+
+  if (
+    text.includes("injured") ||
+    text.includes("damage") ||
+    text.includes("help")
+  ) {
+    return "medium";
+  }
+
+  return "low";
 }
 
-// Priority scale
-// 1 = very destructive
-// 2 = medium
-// 3 = low
-function calculatePriority(severity, confidence) {
-  if (severity === 3 && confidence > 0.6) return 1;
-  if (severity === 2) return 2;
-  return 3;
+function calculatePriority(severity, confidence, peopleAffected = 0) {
+  let priority = 1;
+
+  if (severity === "high") priority += 3;
+  if (severity === "medium") priority += 2;
+
+  if (confidence > 0.7) priority += 2;
+  if (peopleAffected > 10) priority += 2;
+
+  return Math.min(priority, 10);
 }
 
 module.exports = {
