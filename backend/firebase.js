@@ -1,8 +1,6 @@
 const admin = require("firebase-admin");
 
-const serviceAccount = JSON.parse(
-  process.env.FIREBASE_SERVICE_ACCOUNT
-);
+const serviceAccount = require("./disaster-management-aaf3e-57149546527b.json");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
