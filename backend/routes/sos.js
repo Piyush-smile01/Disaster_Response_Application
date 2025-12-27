@@ -1,52 +1,60 @@
+/**
+ * SOS Controller
+ * Handles disaster reports and assigns priority (1–3)
+ */
+
 const express = require("express");
 const router = express.Router();
 
-const db = require("../firebase");
-const { predictDisaster } = require("../ml/model");
-const { detectSeverity, calculatePriority } = require("../ml/utils");
+const { predictDisaster } = require("./model");
+const { detectSeverity, rateDisasterPriority } = require("./utils");
 
-router.post("/", async (req, res) => {
-  console.log("Disaster Reported");
-  console.log("REQ BODY:", req.body);
-
+// POST /sos
+router.post("/sos", async (req, res) => {
   try {
-    const { message, 
-      location, 
-      peopleAffected } = req.body;
+    const {
+      message,          // text description
+      peopleAffected,   // number (optional)
+      location          // { lat, lng } (optional)
+    } = req.body;
 
-    if (!message || !location) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({
+        error: "SOS message is required"
+      });
     }
 
+    // 1️⃣ Predict disaster type using TensorFlow NLP
     const prediction = await predictDisaster(message);
-    const severity = detectSeverity(message,peopleAffected ||0);
-    const priority = calculatePriority(
-      severity,
-      prediction.confidence,
-      peopleAffected || 0
-    );
 
-    const docRef = await db.collection("sos").add({
-      message,
-      location,
-      peopleAffected: peopleAffected || 0,
+    // 2️⃣ Detect severity
+    const severity = detectSeverity(message, peopleAffected || 0);
+
+    // 3️⃣ Rate priority (1–3)
+    const priority = rateDisasterPriority({
+      confidence: prediction.confidence,
+      severity,
+      peopleAffected: peopleAffected || 0
+    });
+
+    // 4️⃣ Build response object
+    const response = {
       disasterType: prediction.disasterType,
       confidence: prediction.confidence,
       severity,
       priority,
-      createdAt: new Date()
-    });
+      peopleAffected: peopleAffected || 0,
+      location: location || null,
+      timestamp: new Date().toISOString()
+    };
 
-    res.status(200).json({
-      id: docRef.id,
-      disasterType: prediction.disasterType,
-      severity,
-      priority
-    });
+    return res.status(200).json(response);
 
   } catch (error) {
-    console.error(" SOS ERROR:", error);
-    res.status(500).json({ error: "SOS processing failed" });
+    console.error("SOS error:", error);
+    return res.status(500).json({
+      error: "Failed to process SOS request"
+    });
   }
 });
 
