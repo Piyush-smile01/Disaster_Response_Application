@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // 🔴 CHANGE THIS to your deployed backend URL
+  
   static const String baseUrl =
-      "https://YOUR-BACKEND.onrender.com";
+      "https://disaster-response-application.onrender.com";
 
   static Future<Map<String, dynamic>?> reportDisaster({
     required String message,
