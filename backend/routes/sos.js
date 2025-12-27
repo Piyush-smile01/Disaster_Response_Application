@@ -1,62 +1,60 @@
-/**
- * SOS Controller
- * Handles disaster reports and assigns priority (1–3)
- */
-
-/**
- * SOS Route
- * Uses TensorFlow NLP + priority (1–3)
- */
-
 const express = require("express");
-const multer = require("multer");
 const router = express.Router();
 
-const {
-  predictTextDisaster,
-  predictImageDisaster,
-  predictVideoDisaster
-} = require("../ml/model");
+const db = require("../firebase");
+const { predictDisaster } = require("../ml/model");
+const { detectSeverity, calculatePriority } = require("../ml/utils");
 
-const {
-  detectSeverity,
-  calculatePriority
-} = require("../ml/utils");
+router.post("/", async (req, res) => {
+  console.log("🔥 SOS API HIT");
+  console.log("REQ BODY:", req.body);
 
-const upload = multer({ dest: "uploads/" });
+  try {
+    const { message, location, peopleAffected } = req.body;
 
-router.post(
-  "/sos",
-  upload.fields([{ name: "image" }, { name: "video" }]),
-  async (req, res) => {
-    try {
-      const { message, peopleAffected } = req.body;
-
-      let prediction = { disasterType: "unknown", confidence: 0.3 };
-
-      if (req.files?.image) {
-        prediction = await predictImageDisaster(req.files.image[0].path);
-      } else if (req.files?.video) {
-        prediction = await predictVideoDisaster(req.files.video[0].path);
-      } else if (message) {
-        prediction = await predictTextDisaster(message);
-      }
-
-      const severity = detectSeverity(message || "", peopleAffected || 0);
-      const priority = calculatePriority(severity, prediction.confidence);
-
-      res.json({
-        disasterType: prediction.disasterType,
-        confidence: prediction.confidence,
-        severity,
-        priority
+    if (!message || !location) {
+      return res.status(400).json({
+        error: "Message and location are required"
       });
-
-    } catch (err) {
-      console.error("SOS ERROR:", err);
-      res.status(500).json({ error: "Internal server error" });
     }
+
+    const prediction = await predictDisaster(message);
+
+    const severity = detectSeverity(
+      message,
+      peopleAffected || 0
+    );
+
+    const priority = calculatePriority(
+      severity,
+      prediction.confidence,
+      peopleAffected || 0
+    );
+
+    const docRef = await db.collection("sos").add({
+      message,
+      location,
+      peopleAffected: peopleAffected || 0,
+      disasterType: prediction.disasterType,
+      confidence: prediction.confidence,
+      severity,
+      priority,
+      createdAt: new Date()
+    });
+
+    res.status(200).json({
+      id: docRef.id,
+      disasterType: prediction.disasterType,
+      severity,
+      priority
+    });
+  } catch (error) {
+    console.error("❌ SOS ERROR:", error);
+    res.status(500).json({
+      error: "SOS processing failed"
+    });
   }
-);
+});
 
 module.exports = router;
+

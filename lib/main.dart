@@ -1,21 +1,23 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
-import 'screens/sos_screen.dart';
+import 'screens/report_disaster_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const DisasterApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DisasterApp extends StatelessWidget {
+  const DisasterApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Disaster Response',
       debugShowCheckedModeBanner: false,
-      title: 'Disaster Response App',
-      home: SosScreen(),
+      theme: ThemeData(
+        primarySwatch: Colors.red,
+        useMaterial3: true,
+      ),
+      home: const ReportDisasterScreen(),
     );
   }
 }

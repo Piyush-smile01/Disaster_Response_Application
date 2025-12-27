@@ -1,104 +1,72 @@
-/**
- * Disaster prediction module
- * This version uses intelligent keyword matching
- * and returns realistic confidence scores.
- */
+const DISASTER_KEYWORDS = {
+  flood: [
+    "flood",
+    "flooded",
+    "water",
+    "overflow",
+    "submerged",
+    "dam",
+    "river"
+  ],
+  fire: [
+    "fire",
+    "burning",
+    "smoke",
+    "blast",
+    "explosion"
+  ],
+  earthquake: [
+    "earthquake",
+    "tremor",
+    "seismic",
+    "aftershock",
+    "collapse"
+  ],
+  cyclone: [
+    "cyclone",
+    "storm",
+    "hurricane",
+    "typhoon",
+    "strong winds"
+  ],
+  landslide: [
+    "landslide",
+    "mudslide",
+    "hill collapse",
+    "rocks falling"
+  ]
+};
 
-/**
- * Disaster prediction module (TensorFlow NLP)
- */
+async function predictDisaster(text) {
+  const message = text.toLowerCase();
 
-/**
- * Disaster prediction module (TensorFlow NLP)
- * Returns disaster type + confidence
- */
-
-const tf = require("@tensorflow/tfjs-node");
-const sharp = require("sharp");
-const ffmpeg = require("fluent-ffmpeg");
-const fs = require("fs");
-const path = require("path");
-
-/* ---------------- TEXT MODEL ---------------- */
-
-const DISASTERS = ["flood", "fire", "earthquake", "cyclone", "landslide"];
-
-async function predictTextDisaster(text) {
-  const lower = text.toLowerCase();
-
-  let scores = {
-    flood: lower.includes("flood") || lower.includes("water") ? 0.8 : 0.1,
-    fire: lower.includes("fire") || lower.includes("smoke") ? 0.8 : 0.1,
-    earthquake: lower.includes("earthquake") ? 0.8 : 0.1,
-    cyclone: lower.includes("storm") || lower.includes("wind") ? 0.8 : 0.1,
-    landslide: lower.includes("landslide") || lower.includes("mud") ? 0.8 : 0.1
+  let bestMatch = {
+    disasterType: "unknown",
+    confidence: 0.3
   };
 
-  let best = "unknown";
-  let confidence = 0;
+  for (const [type, keywords] of Object.entries(DISASTER_KEYWORDS)) {
+    let matches = 0;
 
-  for (let k in scores) {
-    if (scores[k] > confidence) {
-      confidence = scores[k];
-      best = k;
+    for (const keyword of keywords) {
+      if (message.includes(keyword)) {
+        matches++;
+      }
+    }
+
+    if (matches > 0) {
+      const confidence = Math.min(0.5 + matches * 0.15, 0.95);
+
+      if (confidence > bestMatch.confidence) {
+        bestMatch = {
+          disasterType: type,
+          confidence
+        };
+      }
     }
   }
 
-  return { disasterType: best, confidence };
+  return bestMatch;
 }
 
-/* ---------------- IMAGE MODEL ---------------- */
-
-async function preprocessImage(imagePath) {
-  const buffer = await sharp(imagePath)
-    .resize(224, 224)
-    .toFormat("png")
-    .toBuffer();
-
-  return tf.node
-    .decodeImage(buffer, 3)
-    .expandDims(0)
-    .div(255.0);
-}
-
-async function predictImageDisaster(imagePath) {
-  // Dummy CNN-style logic (replace with trained model later)
-  const tensor = await preprocessImage(imagePath);
-  tensor.dispose();
-
-  return {
-    disasterType: "flood",
-    confidence: 0.75
-  };
-}
-
-/* ---------------- VIDEO MODEL ---------------- */
-
-function extractFrame(videoPath, framePath) {
-  return new Promise((resolve, reject) => {
-    ffmpeg(videoPath)
-      .screenshots({
-        count: 1,
-        folder: path.dirname(framePath),
-        filename: path.basename(framePath)
-      })
-      .on("end", resolve)
-      .on("error", reject);
-  });
-}
-
-async function predictVideoDisaster(videoPath) {
-  const framePath = videoPath.replace(".mp4", "_frame.png");
-
-  await extractFrame(videoPath, framePath);
-  const prediction = await predictImageDisaster(framePath);
-
-  fs.unlinkSync(framePath);
-  return prediction;
-}
-
-module.exports = {
-  predictTextDisaster,
-  predictImageDisaster,
-  predictVideoDisaster
-};
+module.exports = { predictDisaster };
