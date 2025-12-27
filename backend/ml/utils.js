@@ -9,48 +9,22 @@
 function detectSeverity(message, peopleAffected = 0) {
   const text = message.toLowerCase();
 
-  if (peopleAffected >= 50) return "critical";
-  if (peopleAffected >= 20) return "high";
-  if (peopleAffected >= 5) return "medium";
-
-  if (
-    text.includes("collapsed") ||
-    text.includes("trapped") ||
-    text.includes("emergency") ||
-    text.includes("destroyed")
-  ) {
-    return "high";
-  }
-
-  return "low";
+  if (peopleAffected > 100 || text.includes("destroyed")) return 3;
+  if (peopleAffected > 20 || text.includes("trapped")) return 2;
+  return 1;
 }
 
-function rateDisasterPriority({
-  confidence,
-  severity,
-  peopleAffected = 0
-}) {
-  // ---- Priority 1: Very destructive ----
-  if (
-    severity === "critical" ||
-    (confidence >= 0.75 && peopleAffected >= 50)
-  ) {
-    return 1;
-  }
-
-  // ---- Priority 2: Moderate ----
-  if (
-    severity === "high" ||
-    (confidence >= 0.5 && peopleAffected >= 10)
-  ) {
-    return 2;
-  }
-
-  // ---- Priority 3: Low ----
+// Priority scale:
+// 1 = very destructive
+// 2 = moderate
+// 3 = low
+function calculatePriority(severity, confidence) {
+  if (severity === 3 && confidence > 0.6) return 1;
+  if (severity === 2) return 2;
   return 3;
 }
 
 module.exports = {
   detectSeverity,
-  rateDisasterPriority
+  calculatePriority
 };
