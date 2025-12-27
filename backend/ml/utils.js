@@ -14,9 +14,9 @@ function detectSeverity(message, peopleAffected = 0) {
   return 1;
 }
 
-// Priority scale:
+// Priority scale
 // 1 = very destructive
-// 2 = moderate
+// 2 = medium
 // 3 = low
 function calculatePriority(severity, confidence) {
   if (severity === 3 && confidence > 0.6) return 1;
