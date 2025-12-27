@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:disaster_response_app/services/sos_service.dart';
-
+;
 
 class SosScreen extends StatefulWidget {
   @override
