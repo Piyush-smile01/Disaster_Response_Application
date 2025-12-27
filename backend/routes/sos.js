@@ -3,29 +3,62 @@
  * Handles disaster reports and assigns priority (1–3)
  */
 
+/**
+ * SOS Route
+ * Uses TensorFlow NLP + priority (1–3)
+ */
+
 const express = require("express");
 const router = express.Router();
 
-// ✅ Correct path to ML model
-const model = require("../ml/model");
+// ✅ CORRECT IMPORT PATHS
+const { predictDisaster } = require("../ml/model");
+const { detectSeverity, rateDisasterPriority } = require("../ml/utils");
 
-router.post("/", async (req, res) => {
+// POST /sos
+router.post("/sos", async (req, res) => {
   try {
-    const { text } = req.body;
+    const {
+      message,
+      peopleAffected = 0,
+      location = null
+    } = req.body;
 
-    if (!text) {
-      return res.status(400).json({ error: "Text is required" });
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({
+        error: "SOS message is required"
+      });
     }
 
-    const prediction = await model.predict(text);
+    // 1️⃣ Predict disaster type (TensorFlow NLP)
+    const prediction = await predictDisaster(message);
 
-    res.status(200).json({
-      success: true,
-      prediction,
+    // 2️⃣ Detect severity
+    const severity = detectSeverity(message, peopleAffected);
+
+    // 3️⃣ Rate priority (1–3)
+    const priority = rateDisasterPriority({
+      confidence: prediction.confidence,
+      severity,
+      peopleAffected
     });
+
+    // 4️⃣ Final response
+    return res.status(200).json({
+      disasterType: prediction.disasterType,
+      confidence: prediction.confidence,
+      severity,
+      priority,
+      peopleAffected,
+      location,
+      timestamp: new Date().toISOString()
+    });
+
   } catch (error) {
-    console.error("SOS route error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ SOS route error:", error);
+    return res.status(500).json({
+      error: "Internal server error while processing SOS"
+    });
   }
 });
 
